@@ -1,4 +1,3 @@
-import firebase from 'firebase'
 import React, { useEffect, useRef, useState } from 'react'
 import { FlatList, RefreshControl, Text, View } from 'react-native'
 import BottomSheet from 'react-native-bottomsheet-reanimated'
@@ -9,7 +8,6 @@ import { bindActionCreators } from 'redux'
 import { deletePost, fetchFeedPosts, reload, sendNotification } from '../../../redux/actions/index'
 import { container, utils } from '../../styles'
 import Post from './Post'
-require('firebase/firestore')
 
 function Feed(props) {
     const [posts, setPosts] = useState([]);
@@ -117,7 +115,7 @@ function Feed(props) {
                                     <Text >Profile</Text>
                                 </TouchableOpacity>
                                 <Divider />
-                                {modalShow.item.creator == firebase.auth().currentUser.uid ?
+                                {modalShow.item.creator == props.currentUser.id ?
                                     <TouchableOpacity style={{ padding: 20 }}
                                         onPress={() => {
                                             props.deletePost(modalShow.item).then(() => {

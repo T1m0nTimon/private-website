@@ -1,38 +1,68 @@
-import firebase from 'firebase';
 import React, { useState } from 'react';
-import { Button, Text, TextInput, View } from 'react-native';
+import { Button, Text, TextInput, View, ActivityIndicator } from 'react-native';
 import { container, form } from '../styles';
+import api from '../../services/api';
 
 export default function Login(props) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const onSignUp = () => {
-        firebase.auth().signInWithEmailAndPassword(email, password)
-    }
+    const onLogin = async () => {
+        if (!email || !password) {
+            setError('Please fill in all fields');
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+
+        try {
+            const response = await api.auth.login({ email, password });
+
+            // Navigate to main screen (auth state will be picked up by App.js)
+            props.navigation.reset({
+                index: 0,
+                routes: [{ name: 'Main' }]
+            });
+        } catch (err) {
+            setError(err.message || 'Login failed');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <View style={container.center}>
             <View style={container.formCenter}>
                 <TextInput
                     style={form.textInput}
-                    placeholder="email"
-                    onChangeText={(email) => setEmail(email)}
+                    placeholder="Email"
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
                 />
                 <TextInput
                     style={form.textInput}
-                    placeholder="password"
+                    placeholder="Password"
+                    value={password}
                     secureTextEntry={true}
-                    onChangeText={(password) => setPassword(password)}
+                    onChangeText={setPassword}
                 />
-
+                {loading && (
+                    <ActivityIndicator size="small" color="#fff" style={{ marginTop: 10 }} />
+                )}
+                {!loading && error && (
+                    <Text style={{ color: 'red', marginTop: 10 }}>{error}</Text>
+                )}
                 <Button
                     style={form.button}
-                    onPress={() => onSignUp()}
-                    title="Sign In"
+                    title={loading ? 'Logging in...' : 'Sign In'}
+                    onPress={onLogin}
+                    disabled={loading}
                 />
             </View>
-
 
             <View style={form.bottomButton} >
                 <Text
@@ -44,4 +74,3 @@ export default function Login(props) {
         </View>
     )
 }
-

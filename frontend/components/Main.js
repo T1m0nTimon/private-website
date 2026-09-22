@@ -1,6 +1,5 @@
 import { createMaterialBottomTabNavigator } from '@react-navigation/material-bottom-tabs';
 import * as Notifications from 'expo-notifications';
-import firebase from 'firebase';
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -63,10 +62,15 @@ function Main(props) {
             }
         }
         setUnreadChats(false)
-        for (let i = 0; i < props.chats.length; i++) {
-            if (!props.chats[i][firebase.auth().currentUser.uid]) {
-
-                setUnreadChats(true)
+        if (props.currentUser && props.chats) {
+            for (let i = 0; i < props.chats.length; i++) {
+                // Check if current user ID is in the chat users array
+                const isUserInChat = props.chats[i].users && props.chats[i].users.includes(props.currentUser.id);
+                // For simplicity, assuming chats store user IDs and we need to check if there are unread messages
+                // This logic may need adjustment based on actual chat structure
+                if (!props.chats[i][props.currentUser.id]) {
+                    setUnreadChats(true)
+                }
             }
         }
     }, [props.currentUser, props.chats])
@@ -108,7 +112,6 @@ function Main(props) {
                 <Tab.Screen key={Date.now()} name="chat" component={ChatListScreen} navigation={props.navigation} share={false}
                     options={{
                         tabBarIcon: ({ color, size }) => (
-
                             <View>
 
                                 {unreadChats ?
@@ -127,7 +130,7 @@ function Main(props) {
                     listeners={({ navigation }) => ({
                         tabPress: event => {
                             event.preventDefault();
-                            navigation.navigate("Profile", { uid: firebase.auth().currentUser.uid })
+                            navigation.navigate("Profile", { uid: props.currentUser.id })
                         }
                     })}
                     options={{

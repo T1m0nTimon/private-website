@@ -1,64 +1,50 @@
-import firebase from 'firebase';
 import React, { useState } from 'react';
-import { Button, Text, TextInput, View } from 'react-native';
-import { Snackbar } from 'react-native-paper';
+import { Button, Text, TextInput, View, ActivityIndicator } from 'react-native';
 import { container, form } from '../styles';
-
-require('firebase/firestore');
+import api from '../../services/api';
 
 export default function Register(props) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
     const [username, setUsername] = useState('');
-    const [isValid, setIsValid] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const onRegister = () => {
-        if (name.lenght == 0 || username.lenght == 0 || email.length == 0 || password.length == 0) {
-            setIsValid({ bool: true, boolSnack: true, message: "Please fill out everything" })
+    const onRegister = async () => {
+        // Validation
+        if (!name || !username || !email || !password) {
+            setError('Please fill out all fields');
             return;
         }
+
         if (password.length < 6) {
-            setIsValid({ bool: true, boolSnack: true, message: "passwords must be at least 6 characters" })
+            setError('Password must be at least 6 characters');
             return;
         }
-        if (password.length < 6) {
-            setIsValid({ bool: true, boolSnack: true, message: "passwords must be at least 6 characters" })
-            return;
+
+        setLoading(true);
+        setError('');
+
+        try {
+            const response = await api.auth.register({
+                email,
+                password,
+                name,
+                username
+            });
+
+            // Registration successful, navigate to login
+            props.navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }]
+            });
+        } catch (err) {
+            setError(err.message || 'Registration failed');
+        } finally {
+            setLoading(false);
         }
-        firebase.firestore()
-            .collection('users')
-            .where('username', '==', username)
-            .get()
-            .then((snapshot) => {
-
-                if (!snapshot.exist) {
-                    firebase.auth().createUserWithEmailAndPassword(email, password)
-                        .then(() => {
-                            if (snapshot.exist) {
-                                return
-                            }
-                            firebase.firestore().collection("users")
-                                .doc(firebase.auth().currentUser.uid)
-                                .set({
-                                    name,
-                                    email,
-                                    username,
-                                    image: 'default',
-                                    followingCount: 0,
-                                    followersCount: 0,
-
-                                })
-                        })
-                        .catch(() => {
-                            setIsValid({ bool: true, boolSnack: true, message: "Something went wrong" })
-                        })
-                }
-            }).catch(() => {
-                setIsValid({ bool: true, boolSnack: true, message: "Something went wrong" })
-            })
-
-    }
+    };
 
     return (
         <View style={container.center}>
@@ -68,46 +54,48 @@ export default function Register(props) {
                     placeholder="Username"
                     value={username}
                     keyboardType="twitter"
-                    onChangeText={(username) => setUsername(username.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '').replace(/[^a-z0-9]/gi, ''))}
+                    onChangeText={(username) => setUsername(username.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, '').replace(/[^a-z0-9]/gi, ''))}
                 />
                 <TextInput
                     style={form.textInput}
-                    placeholder="name"
-                    onChangeText={(name) => setName(name)}
+                    placeholder="Name"
+                    value={name}
+                    onChangeText={setName}
                 />
                 <TextInput
                     style={form.textInput}
-                    placeholder="email"
-                    onChangeText={(email) => setEmail(email)}
+                    placeholder="Email"
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
                 />
                 <TextInput
                     style={form.textInput}
-                    placeholder="password"
+                    placeholder="Password"
+                    value={password}
                     secureTextEntry={true}
-                    onChangeText={(password) => setPassword(password)}
+                    onChangeText={setPassword}
                 />
-
+                {loading && (
+                    <ActivityIndicator size="small" color="#fff" style={{ marginTop: 10 }} />
+                )}
+                {!loading && error && (
+                    <Text style={{ color: 'red', marginTop: 10 }}>{error}</Text>
+                )}
                 <Button
                     style={form.button}
-                    onPress={() => onRegister()}
-                    title="Register"
+                    title={loading ? 'Registering...' : 'Register'}
+                    onPress={onRegister}
+                    disabled={loading}
                 />
             </View>
 
             <View style={form.bottomButton} >
                 <Text
                     onPress={() => props.navigation.navigate("Login")} >
-                    Already have an account? SignIn.
+                    Already have an account? Sign In.
                 </Text>
             </View>
-            <Snackbar
-                visible={isValid.boolSnack}
-                duration={2000}
-                onDismiss={() => { setIsValid({ boolSnack: false }) }}>
-                {isValid.message}
-            </Snackbar>
         </View>
-
     )
 }
-

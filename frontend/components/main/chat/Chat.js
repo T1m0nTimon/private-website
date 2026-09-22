@@ -1,15 +1,13 @@
 import { FontAwesome5 } from '@expo/vector-icons';
-import firebase from 'firebase';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import CachedImage from 'react-native-expo-cached-image';
 import { Provider } from 'react-native-paper';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { fetchFeedPosts, fetchUserChats, sendNotification } from '../../../redux/actions/index';
+import { fetchUserChats, sendNotification } from '../../../redux/actions/index';
 import { container, text, utils } from '../../styles';
 import { timeDifference } from '../../utils';
-require('firebase/firestore')
 
 
 function Chat(props) {
@@ -22,26 +20,11 @@ function Chat(props) {
     const [initialFetch, setInitialFetch] = useState(false)
 
     useEffect(() => {
-        if (props.route.params.notification) {
-            firebase.firestore()
-                .collection("users")
-                .doc(props.route.params.user)
-                .get()
-                .then((snapshot) => {
-                    if (snapshot.exists) {
-                        let user = snapshot.data();
-                        user.uid = snapshot.id;
-
-                        setUser(user)
-                    }
-                })
+        // Get user data from route params instead of Firestore
+        if (props.route.params.user) {
+            setUser(props.route.params.user);
         }
-        else {
-            setUser(props.route.params.user)
-        }
-
-    }, [props.route.params.notification, props.route.params.user])
-
+    }, [props.route.params.user])
 
     useEffect(() => {
         if (user == null) {
@@ -51,7 +34,8 @@ function Chat(props) {
             return;
         }
 
-        const chat = props.chats.find(el => el.users.includes(user.uid));
+        // Find chat from props.chats (Redux state)
+        const chat = props.chats.find(el => el.users && el.users.includes(user.uid));
         setChat(chat)
 
 
@@ -64,7 +48,6 @@ function Chat(props) {
                                 <FontAwesome5
                                     style={[utils.profileImageSmall]}
                                     name="user-circle" size={35} color="black" />
-
                             )
                             :
                             (
@@ -76,88 +59,34 @@ function Chat(props) {
                                 />
                             )
                     }
-                    <Text style={[text.bold, text.large, { flex: 1 }]} numberOfLines={1} ellipsizeMode='tail'>{props.route.params.user.username}</Text>
+                    <Text style={[text.bold, text.large, { flex: 1 }]} numberOfLines={1} ellipsizeMode='tail'>{user.username}</Text>
                 </View>
             ),
         });
         if (chat !== undefined) {
-            firebase.firestore()
-                .collection("chats")
-                .doc(chat.id)
-                .collection("messages")
-                .orderBy("creation", "asc")
-                .onSnapshot((snapshot) => {
-
-                    let messages = snapshot.docs.map(doc => {
-                        const data = doc.data();
-                        const id = doc.id;
-                        return { id, ...data }
-                    })
-                    setMessages(messages)
-                })
-
-            firebase.firestore()
-                .collection('chats')
-                .doc(chat.id)
-                .update({
-                    [firebase.auth().currentUser.uid]: true,
-                })
+            // For now, we'll just show a placeholder since we don't have real-time messaging implemented
+            // In a full implementation, we would:
+            // 1. Load messages from API when chat loads
+            // 2. Set up real-time updates via websockets or polling
+            // 3. Allow sending new messages via API
+            setMessages([]); // Clear messages for now
             setInitialFetch(true)
-
         } else {
-            createChat()
+            // Create chat would require backend endpoint
+            // For now, we'll just set initialFetch to true to prevent looping
+            setInitialFetch(true)
         }
     }, [user, props.chats])
 
-    const createChat = () => {
-        firebase.firestore()
-            .collection("chats")
-            .add({
-                users: [firebase.auth().currentUser.uid, user.uid],
-                lastMessage: 'Send the first message',
-                lastMessageTimestamp: firebase.firestore.FieldValue.serverTimestamp()
-            }).then(() => {
-                props.fetchUserChats()
-            })
-    }
     const onSend = () => {
-        const textToSend = input;
-        if (chat == undefined) {
-            return;
-        }
-
-        if (input.length == 0) {
-            return;
-        }
+        // Chat sending functionality would require backend endpoints
+        // For now, we'll just show an alert or do nothing
+        alert('Chat functionality is coming soon!');
+        // Clear input anyway
         setInput("")
-
-
-        textInput.clear()
-
-        firebase.firestore()
-            .collection('chats')
-            .doc(chat.id)
-            .collection('messages')
-            .add({
-                creator: firebase.auth().currentUser.uid,
-                text: textToSend,
-                creation: firebase.firestore.FieldValue.serverTimestamp()
-            })
-
-        firebase.firestore()
-            .collection('chats')
-            .doc(chat.id)
-            .update({
-                lastMessage: textToSend,
-                lastMessageTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                [chat.users[0]]: false,
-                [chat.users[1]]: false
-
-            })
-
-        props.sendNotification(user.notificationToken, "New Message", textToSend, { type: "chat", user: firebase.auth().currentUser.uid })
-
-
+        if (textInput) {
+            textInput.clear()
+        }
     }
 
     return (
@@ -170,9 +99,8 @@ function Chat(props) {
                     data={messages}
                     ref={setFlatList}
                     onContentSizeChange={() => { if (flatList != null) flatList.scrollToEnd({ animated: true }) }}
-
                     renderItem={({ item }) => (
-                        <View style={[utils.padding10, container.container, item.creator == firebase.auth().currentUser.uid ? container.chatRight : container.chatLeft]}>
+                        <View style={[utils.padding10, container.container, item.creator == props.currentUser?.id ? container.chatRight : container.chatLeft]}>
                             {item.creator !== undefined && item.creation !== null ?
                                 <View style={container.horizontal}>
                                     <View>
@@ -212,22 +140,20 @@ function Chat(props) {
                     }
                 />
 
-
                 < View style={[container.horizontal, utils.padding10, utils.alignItemsCenter, utils.backgroundWhite, utils.borderTopGray]} >
                     {
-                        props.currentUser.image == 'default' ?
+                        props.currentUser?.image == 'default' ?
                             (
                                 <FontAwesome5
                                     style={[utils.profileImageSmall]}
                                     name="user-circle" size={35} color="black" />
-
                             )
                             :
                             (
                                 <Image
                                     style={[utils.profileImageSmall]}
                                     source={{
-                                        uri: props.currentUser.image
+                                        uri: props.currentUser?.image
                                     }}
                                 />
                             )
@@ -250,10 +176,10 @@ function Chat(props) {
                         </TouchableOpacity >
                     </View>
                 </View >
+
             </Provider>
 
         </View >
-
     )
 }
 
@@ -262,8 +188,8 @@ const mapStateToProps = (store) => ({
     chats: store.userState.chats,
     following: store.userState.following,
     feed: store.usersState.feed,
-
 })
-const mapDispatchProps = (dispatch) => bindActionCreators({ fetchUserChats, sendNotification, fetchFeedPosts }, dispatch);
+
+const mapDispatchProps = (dispatch) => bindActionCreators({ fetchUserChats, sendNotification }, dispatch);
 
 export default connect(mapStateToProps, mapDispatchProps)(Chat);

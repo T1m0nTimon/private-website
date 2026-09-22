@@ -3,21 +3,47 @@ import React, { useState } from 'react';
 import { FlatList, Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { queryUsersByUsername } from '../../../redux/actions/index';
+import api from '../../../services/api';
 import { container, text, utils } from '../../styles';
-
-require('firebase/firestore');
 
 
 function Search(props) {
-    const [users, setUsers] = useState([])
+    const [users, setUsers] = useState([]);
+
+    const handleSearch = async (searchTerm) => {
+        if (searchTerm.trim() === '') {
+            setUsers([]);
+            return;
+        }
+
+        try {
+            const response = await api.userAPI.searchUsers(searchTerm);
+            const foundUsers = response.users || [];
+            // Format users to match expected structure
+            const formattedUsers = foundUsers.map(user => ({
+                id: user.id,
+                name: user.name,
+                username: user.username,
+                image: user.image || 'default',
+                // Add other fields as needed
+                followersCount: user.followersCount || 0,
+                followingCount: user.followingCount || 0
+            }));
+            setUsers(formattedUsers);
+        } catch (error) {
+            console.error('Search error:', error);
+            setUsers([]);
+        }
+    };
+
     return (
         <View style={[utils.backgroundWhite, container.container]}>
             <View style={{ marginVertical: 30, paddingHorizontal: 20 }}>
                 <TextInput
                     style={utils.searchBar}
                     placeholder="Type Here..."
-                    onChangeText={(search) => props.queryUsersByUsername(search).then(setUsers)} />
+                    onChangeText={(search) => handleSearch(search)}
+                />
             </View>
 
 
@@ -52,13 +78,12 @@ function Search(props) {
                             <Text style={text.name} >{item.name}</Text>
                         </View>
                     </TouchableOpacity>
-
                 )}
             />
-        </View>
+        </View >
     )
 }
 
-const mapDispatchProps = (dispatch) => bindActionCreators({ queryUsersByUsername }, dispatch);
+const mapDispatchProps = (dispatch) => bindActionCreators({ })(dispatch);
 
 export default connect(null, mapDispatchProps)(Search);

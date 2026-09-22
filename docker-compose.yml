@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    environment:
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=example
+      - DB_NAME=instagram_clone
+      - JWT_SECRET=supersecretkeychangethisinproduction
+      - NODE_ENV=development
+    volumes:
+      - ./backend/uploads:/app/uploads
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=example
+      - MYSQL_DATABASE=instagram_clone
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "19006:19006"
+    environment:
+      - REACT_NATIVE_PACKAGER_HOSTNAME=localhost
+      - API_URL=http://host.docker.internal:5000/api
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  db_data:
